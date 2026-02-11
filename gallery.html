@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Photo Gallery</title>
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #11998e;
+            --secondary: #38ef7d;
+            --bg: #121212;
+            --text: #ffffff;
+        }
+
+        body {
+            font-family: 'Prompt', sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+        }
+
+        /* --- Navbar & Grid Styles เหมือนเดิม --- */
+        .navbar {
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .btn-back {
+            color: white;
+            text-decoration: none;
+            font-size: 1.2rem;
+            margin-right: 15px;
+            background: rgba(255, 255, 255, 0.2);
+            padding: 8px 15px;
+            border-radius: 8px;
+            transition: background 0.3s;
+        }
+
+        .btn-back:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .navbar h1 {
+            margin: 0;
+            font-size: 1.2rem;
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            background-color: var(--secondary);
+            border-radius: 50%;
+            margin-right: 8px;
+            box-shadow: 0 0 10px var(--secondary);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.95);
+                opacity: 0.5;
+            }
+
+            50% {
+                transform: scale(1.1);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(0.95);
+                opacity: 0.5;
+            }
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 0 15px;
+        }
+
+        #statusMsg {
+            text-align: center;
+            font-size: 1.2rem;
+            color: #aaa;
+            margin: 40px 0;
+        }
+
+        .photo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .photo-card {
+            background: #222;
+            border-radius: 12px;
+            overflow: hidden;
+            position: relative;
+            aspect-ratio: 2/3;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .photo-card img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            transition: transform 0.3s ease;
+        }
+
+        .photo-card:hover img {
+            transform: scale(1.05);
+        }
+
+        /* ซ่อนปุ่มดาวน์โหลดเล็กๆ ไว้ เผื่อใครอยากกดโหลดด่วนโดยไม่เปิดดูรูป */
+        .download-btn-small {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.6);
+            color: white;
+            text-decoration: none;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            opacity: 0;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        .photo-card:hover .download-btn-small {
+            opacity: 1;
+        }
+
+        @media (max-width: 480px) {
+            .photo-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .photo-grid {
+                grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            }
+        }
+
+        /* --- 🖼️ ส่วนของ Modal (แสดงรูปขนาดใหญ่) --- */
+        .modal {
+            display: none;
+            /* ซ่อนไว้เป็นค่าเริ่มต้น */
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(5px);
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        /* เมื่อเติม class show จะแสดงขึ้นมา */
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 95%;
+            max-height: 90vh;
+            animation: zoomIn 0.3s ease;
+        }
+
+        @keyframes zoomIn {
+            from {
+                transform: scale(0.9);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .modal-img {
+            max-width: 100%;
+            max-height: 70vh;
+            /* ให้รูปสูงไม่เกิน 70% ของจอ เพื่อเหลือที่ให้ปุ่ม */
+            object-fit: contain;
+            /* รูปจะไม่โดนตัด */
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            margin-bottom: 25px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .btn-download-large,
+        .btn-close-large {
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-size: 1.1rem;
+            font-family: 'Prompt', sans-serif;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            border: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s;
+        }
+
+        .btn-download-large {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: #000;
+        }
+
+        .btn-close-large {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .btn-download-large:hover,
+        .btn-close-large:hover {
+            transform: scale(1.05);
+        }
+
+        /* ปุ่ม X มุมขวาบน */
+        .close-top-right {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: white;
+            font-size: 35px;
+            font-weight: bold;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: 0.3s;
+        }
+
+        .close-top-right:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="navbar">
+        <a href="index.html" class="btn-back">⬅️ กลับ</a>
+        <h1 id="eventName">กำลังโหลดงาน...</h1>
+        <div class="status-dot" title="ระบบกำลังอัปเดตรูปภาพอัตโนมัติ"></div>
+        <span style="font-size: 0.8rem; color: #aaa;">Live</span>
+    </div>
+
+    <div class="container">
+        <div id="statusMsg">⏳ กำลังดึงรูปภาพล่าสุด...</div>
+        <div class="photo-grid" id="galleryGrid"></div>
+    </div>
+
+    <div id="imageModal" class="modal" onclick="closeModal(event)">
+        <span class="close-top-right" onclick="closeModal(event)">&times;</span>
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <img id="modalImage" class="modal-img" src="" alt="Full size photo">
+            <div class="modal-actions">
+                <button class="btn-close-large" onclick="closeModal(event)">❌ ปิด</button>
+                <a id="modalDownloadBtn" href="" class="btn-download-large" target="_blank" download>
+                    ⬇️ บันทึกรูปภาพ
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ⚠️ อย่าลืมแก้ SCRIPT_URL ให้เป็นของคุณนะครับ ⚠️
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyjCry1K7Gmo2nubjb7zDWRQ7coJJgcQybOn48c2pYdlh7WHQGMZrrf2lw8SEYPU6gyQg/exec';
+
+        const params = new URLSearchParams(window.location.search);
+        const folderId = params.get('folder');
+        const eventName = params.get('name');
+
+        if (eventName) {
+            document.getElementById('eventName').innerText = eventName;
+        }
+
+        const galleryDiv = document.getElementById('galleryGrid');
+        const statusMsg = document.getElementById('statusMsg');
+
+        let currentPhotoCount = 0;
+
+        async function fetchAndDisplayPhotos() {
+            if (!folderId) {
+                statusMsg.innerText = "❌ ไม่พบรหัสโฟลเดอร์ กรุณากลับไปเลือกงานใหม่";
+                return;
+            }
+
+            try {
+                const response = await fetch(`${SCRIPT_URL}?action=getPhotos&folderId=${folderId}`);
+                const photos = await response.json();
+
+                if (photos.length === 0) {
+                    statusMsg.innerText = "📸 ยังไม่มีรูปภาพในงานนี้";
+                    return;
+                }
+
+                if (photos.length === currentPhotoCount) {
+                    return;
+                }
+
+                galleryDiv.innerHTML = '';
+                currentPhotoCount = photos.length;
+                statusMsg.style.display = 'none';
+
+                // โค้ดสร้างรูป ไม่ต้อง reverse แล้ว เพราะทำจากสคริปต์มาแล้ว
+                photos.forEach(photo => {
+                    const timestamp = Date.now();
+                    const previewUrl = `${photo.thumbnailUrl}&t=${timestamp}`;
+
+                    const card = document.createElement('div');
+                    card.className = 'photo-card';
+                    // เพิ่ม onclick สั่งเปิด Modal เมื่อกดที่รูปภาพ
+                    card.onclick = () => openModal(previewUrl, photo.downloadUrl);
+
+                    card.innerHTML = `
+                        <img src="${previewUrl}" loading="lazy" alt="Event Photo">
+                        <a href="${photo.downloadUrl}" class="download-btn-small" target="_blank" download onclick="event.stopPropagation()">
+                           ⬇️ โหลดด่วน
+                        </a>
+                    `;
+                    galleryDiv.appendChild(card);
+                });
+
+            } catch (error) {
+                console.error("Error:", error);
+                if (currentPhotoCount === 0) {
+                    statusMsg.innerText = "❌ เกิดข้อผิดพลาดในการดึงรูปภาพ";
+                }
+            }
+        }
+
+        // --- 🔍 ระบบเปิด/ปิดรูปขนาดใหญ่ (Modal) ---
+        function openModal(imgSrc, downloadUrl) {
+            const modal = document.getElementById('imageModal');
+            document.getElementById('modalImage').src = imgSrc;
+            document.getElementById('modalDownloadBtn').href = downloadUrl;
+
+            modal.classList.add('show');
+            document.body.style.overflow = 'hidden'; // ล็อกไม่ให้จอด้านหลังเลื่อนได้
+        }
+
+        function closeModal(event) {
+            // ป้องกันไม่ให้กดโดนปุ่มแล้วทะลุไปสั่งอย่างอื่น
+            if (event) event.stopPropagation();
+
+            const modal = document.getElementById('imageModal');
+            modal.classList.remove('show');
+
+            // เคลียร์รูปออก เพื่อไม่ให้กระพริบเห็นรูปเก่าตอนกดเปิดครั้งหน้า
+            setTimeout(() => {
+                document.getElementById('modalImage').src = '';
+            }, 300);
+
+            document.body.style.overflow = 'auto'; // คืนค่าให้จอเลื่อนได้ตามปกติ
+        }
+
+        fetchAndDisplayPhotos();
+        setInterval(fetchAndDisplayPhotos, 60000);
+
+    </script>
+</body>
+
+</html>
